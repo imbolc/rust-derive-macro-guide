@@ -30,7 +30,8 @@ fn main() {
 }
 ```
 
-So these derives should expand into:
+So these derives wold expand into
+
 ```rust
 impl MyTrait for Foo {}
 
@@ -41,3 +42,19 @@ impl MyTrait for Bar {
 }
 ```
 
+## Step 1: a separate crate for the macro
+
+Proc macros should live in a separate crate. Let's create one in a sub-folder and make it a dependency for our root crate
+
+```sh
+cargo new --lib mytrait-derive
+cargo add mytrait-derive --path mytrait-derive
+```
+
+We should also tell Cargo that `mytrait-derive` is a proc-macro crate:
+```sh
+cat >> mytrait-derive/Cargo.toml << EOF
+[lib]
+proc-macro = true
+EOF
+```
