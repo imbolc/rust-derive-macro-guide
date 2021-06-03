@@ -24,13 +24,18 @@ struct Foo;
 #[my_trait(answer = 0)]
 struct Bar;
 
-fn main() {
+#[test]
+fn default() {
     assert_eq!(Foo::answer(), 42);
+}
+
+#[test]
+fn getter() {
     assert_eq!(Bar::answer(), 0);
 }
 ```
 
-So these derives wold expand into
+So these derives would expand into
 
 ```rust
 impl MyTrait for Foo {}
@@ -62,8 +67,8 @@ EOF
 
 ## Step 2: default trait implementation
 
-Now let's make `#[derive(MyTrait)]` work. We'll need to add a few goto
-dependencies to our proc-macro crate
+Now let's make `#[derive(MyTrait)]` work. We'll need to add a few dependencies
+to our macro crate
 
 ```sh
 cd mytrait-derive
@@ -71,7 +76,7 @@ cargo add proc-macro2@1.0 quote@1.0
 cargo add syn@1.0 --features full
 ```
 
-And here's our default trait implementation (in `mytrait-derive/src/lib.rs`):
+And here's our default trait implementation (`mytrait-derive/src/lib.rs`):
 
 ```rust
 use proc_macro::{self, TokenStream};
@@ -93,7 +98,7 @@ implementation for. We're getting it from the `parse_macro_input!` and then we
 use it in the `quote!`, which is like a template engine for Rust code
 generation.
 
-Now this test (in `src/lib.rs`) should pass:
+Now this test (`src/lib.rs`) should pass:
 
 ```rust
 use mytrait_derive::MyTrait;
@@ -108,7 +113,7 @@ trait MyTrait {
 struct Foo;
 
 #[test]
-fn default_impl() {
+fn default() {
     assert_eq!(Foo::answer(), 42);
 }
 ```
@@ -120,5 +125,65 @@ cargo expand | grep 'impl MyTrait'
 impl MyTrait for Foo {}
 ```
 
+## Step 3: the getter initialization
+
+Now it's time to make our getter initializable by `#[my_trait(answer = ...)]`
+attribute.  We'll need one more crate for convenient parsing of the
+initialization value
+
+```sh
+cd mytrait-derive
+cargo add darling@0.13
+```
+
+Here's the final version of our macro (`mytrait-derive/src/lib.rs`):
+
+```rust
+use darling::FromDeriveInput;
+use proc_macro::{self, TokenStream};
+use quote::quote;
+use syn::{parse_macro_input, DeriveInput};
+
+#[derive(FromDeriveInput, Default)]
+#[darling(default, attributes(my_trait))]
+struct Opts {
+    answer: Option<i32>,
+}
+
+#[proc_macro_derive(MyTrait, attributes(my_trait))]
+pub fn derive(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input);
+    let opts = Opts::from_derive_input(&input).expect("Wrong options");
+    let DeriveInput { ident, .. } = input;
+
+    let answer = match opts.answer {
+        Some(x) => quote! {
+            fn answer() -> i32 {
+                #x
+            }
+        },
+        None => quote! {},
+    };
+
+    let output = quote! {
+        impl MyTrait for #ident {
+            #answer
+        }
+    };
+    output.into()
+}
+```
+
+Struct `Opts` describes parameters of the `#[my_trait(...)]` attribute. Here we
+have only one of them - `answer`. Notice that it's optional, because we don't
+want to overwrite the default `fn answer()` implementation if the attribute
+wasn't used.
+
+The `qoute!` macro is composable - we can use output of one of them in another.
+So in the `match` we check if the initializer is passed and create the method
+implementation or just nothing. And finally we use the result in the outer
+`qoute!` template.
+
+That's all, clone this repo to play with the code.
 
 [cargo-expand]: https://github.com/dtolnay/cargo-expand
