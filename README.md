@@ -47,6 +47,16 @@ impl MyTrait for Bar {
 }
 ```
 
+## Step 0: prerequisites
+
+Install Cargo extended tools
+
+```sh
+cargo install cargo-edit
+cargo install cargo-expand
+```
+
+
 ## Step 1: a separate crate for the macro
 
 Proc macros should live in a separate crate. Let's create one in a sub-folder
