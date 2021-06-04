@@ -179,10 +179,10 @@ have only one of them - `answer`. Notice that it's optional, because we don't
 want to overwrite the default `fn answer()` implementation if the attribute
 wasn't used.
 
-The `qoute!` macro is composable - we can use output of one of them in another.
+The `quote!` macro is composable - we can use output of one of them in another.
 So in the `match` we check if the initializer is passed and create the method
 implementation or just nothing. And finally we use the result in the outer
-`qoute!` template.
+`quote!` template.
 
 That's all, clone this repo to play with the code.
 
